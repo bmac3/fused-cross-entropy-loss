@@ -1,9 +1,6 @@
 #include <pybind11/pybind11.h>
+#include "kernels.h"
 
-
-int add(int i, int j) {
-    return i + j;
-}
 
 namespace py = pybind11;
 
