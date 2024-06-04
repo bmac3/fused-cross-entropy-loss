@@ -1,5 +1,5 @@
 [project]
-name = "fused-ce"
+name = "fused-ce-loss"
 version = "0.0.1"
 
 [build-system]
@@ -10,4 +10,4 @@ requires = [
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
-wheel.install-dir = "fused_ce"
+wheel.install-dir = "fused_ce_loss"

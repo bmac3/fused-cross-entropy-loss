@@ -9,9 +9,9 @@ project(
 find_package(pybind11 REQUIRED)
 
 pybind11_add_module(
-    c_ext
-    ${CMAKE_CURRENT_LIST_DIR}/csrc/kernels.cu
-    ${CMAKE_CURRENT_LIST_DIR}/csrc/gpu_ops.cpp
+    cu_ext
+    ${CMAKE_CURRENT_LIST_DIR}/cu_ext/kernels.cu
+    ${CMAKE_CURRENT_LIST_DIR}/cu_ext/cu_ext.cpp
 )
 
-install(TARGETS c_ext LIBRARY DESTINATION .)
+install(TARGETS cu_ext LIBRARY DESTINATION .)
