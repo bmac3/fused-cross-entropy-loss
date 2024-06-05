@@ -12,7 +12,7 @@ constexpr int BLOCK_SIZE = 16;
 
 
 template <typename T>
-__global__ void cuFusedCrossEntropyLossFwd(const T *xs, const T *vocab, T *out, 
+__global__ void cuFusedCrossEntropyLossFwd(const T *xs, const int *ys, const T *vocab, T *out, 
                                            int batch_size, int sequence_len, int vocab_size, int embed_size) {
     int tidx = blockIdx.x * blockDim.x + threadIdx.x;
     int tidy = blockIdx.y * blockDim.y + threadIdx.y;
@@ -41,15 +41,16 @@ void apply_fused_ce_loss_fwd(cudaStream_t stream, void **buffers, const char *op
     const int embed_size = d.embed_size;
 
     const T *xs = static_cast<const T*>(buffers[0]);
-    const T *vocab = static_cast<const T*>(buffers[1]);
-    T *out = static_cast<T*>(buffers[2]);
+    const int *ys = static_cast<const int*>(buffers[1]);
+    const T *vocab = static_cast<const T*>(buffers[2]);
+    T *out = static_cast<T*>(buffers[3]);
 
     const dim3 block_dim(BLOCK_SIZE, BLOCK_SIZE);
     int grid_x = (sequence_len % BLOCK_SIZE == 0) ? sequence_len / BLOCK_SIZE : (sequence_len / BLOCK_SIZE) + 1;
     int grid_y = (vocab_size % BLOCK_SIZE == 0) ? vocab_size / BLOCK_SIZE : (vocab_size / BLOCK_SIZE) + 1;
     const dim3 grid_dim(grid_x, grid_y);
 
-    cuFusedCrossEntropyLossFwd<<<grid_dim, block_dim>>>(vocab, xs, out, batch_size, sequence_len, vocab_size, embed_size);
+    cuFusedCrossEntropyLossFwd<<<grid_dim, block_dim>>>(xs, ys, vocab, out, batch_size, sequence_len, vocab_size, embed_size);
 
     ThrowIfError(cudaGetLastError());
 }
