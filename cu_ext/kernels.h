@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cuda_runtime_api.h>
+#include <cstddef>
+
 namespace cu_ext {
 
 struct FusedCELossDescriptor {
@@ -10,6 +13,6 @@ struct FusedCELossDescriptor {
 };
 
 void fused_ce_loss_fwd_bf16(cudaStream_t stream, void** buffers, const char* opaque,
-                        size_t opaque_len);
+                            std::size_t opaque_len);
 
 }

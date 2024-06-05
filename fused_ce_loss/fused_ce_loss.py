@@ -1,7 +1,7 @@
 from functools import partial
 
-from jax import core
-from jax.interpreters import xla
+from jax import core, dtypes
+from jax.interpreters import xla, mlir
 from jax.interpreters.mlir import ir
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
@@ -34,10 +34,10 @@ def _fused_ce_loss_fwd_cuda_lowering(ctx, xs, vocab):
     vocab_type = ir.RankedTensorType(vocab.type)
     vocab_shape = vocab_type.shape
 
-    assert vocab.shape[-1] == xs.shape[-1], 'embed_size of vocab does not match embed_size of xs'
+    assert vocab_shape[-1] == xs_shape[-1], 'embed_size of vocab does not match embed_size of xs'
 
-    vocab_size, embed_size = vocab.shape
-    batch_size, sequence_len, _ = xs.shape
+    vocab_size, embed_size = vocab_shape
+    batch_size, sequence_len, _ = xs_shape
 
     opaque = cu_ext.build_fused_ce_loss_descriptor(batch_size, sequence_len, vocab_size, embed_size)
     result_shape = (batch_size, sequence_len)
@@ -57,3 +57,14 @@ mlir.register_lowering(
     _fused_ce_loss_fwd_cuda_lowering,
     platform='gpu'
 )
+
+# define abstract evaluation
+
+def _fused_ce_loss_fwd_abstract_eval(xs, vocab):
+    assert xs.shape[-1] == vocab.shape[-1]
+    batch_size, sequence_len, _ = xs.shape
+    dtype = dtypes.canonicalize_dtype(xs.dtype)
+    return core.ShapedArray((batch_size, sequence_len), dtype)
+    
+
+_fused_ce_loss_fwd_p.def_abstract_eval(_fused_ce_loss_fwd_abstract_eval)

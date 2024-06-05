@@ -7,6 +7,7 @@ project(
 )
 
 find_package(pybind11 REQUIRED)
+include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
 pybind11_add_module(
     cu_ext
