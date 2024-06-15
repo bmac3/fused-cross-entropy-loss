@@ -7,7 +7,11 @@ project(
 )
 
 find_package(pybind11 REQUIRED)
-include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+include_directories(
+    ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+    ${CMAKE_SOURCE_DIR}/cu_ext/cutlass/include
+    ${CMAKE_SOURCE_DIR}/cu_ext/cutlass/tools/util/include
+)
 
 pybind11_add_module(
     cu_ext
