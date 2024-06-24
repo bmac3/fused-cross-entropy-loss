@@ -6,6 +6,10 @@ project(
     LANGUAGES CXX CUDA
 )
 
+set(PYBIND11_FINDPYTTHON True)
+
+set(CMAKE_CUDA_ARCHITECTURES 80)
+
 find_package(pybind11 REQUIRED)
 include_directories(
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}

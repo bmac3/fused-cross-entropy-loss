@@ -15,8 +15,8 @@ _fused_ce_loss_fwd_p.multiple_results = False
 _fused_ce_loss_fwd_p.def_impl(partial(xla.apply_primitive, _fused_ce_loss_fwd_p))
 
 
-def fused_ce_loss_fwd(xs, ys, vocab):
-    return _fused_ce_loss_fwd_p.bind(xs, ys, vocab)
+def fused_ce_loss_fwd(xs, vocab, ys):
+    return _fused_ce_loss_fwd_p.bind(xs, vocab, ys)
 
 
 # register lowering
@@ -34,7 +34,7 @@ def make_row_major_layouts(*shapes):
     return [range(len(shape) - 1, -1, -1) for shape in shapes]
 
 
-def _fused_ce_loss_fwd_cuda_lowering(ctx, xs, ys, vocab):
+def _fused_ce_loss_fwd_cuda_lowering(ctx, xs, vocab, ys):
     xs_type = ir.RankedTensorType(xs.type)
     xs_shape = xs_type.shape
     ys_type = ir.RankedTensorType(ys.type)
@@ -53,7 +53,7 @@ def _fused_ce_loss_fwd_cuda_lowering(ctx, xs, ys, vocab):
     return custom_call(
         b'fused_ce_loss_fwd_bf16',
         result_types=[ir.RankedTensorType.get(result_shape, ir.BF16Type.get())],
-        operands=[xs, ys, vocab],
+        operands=[xs, vocab, ys],
         backend_config=opaque,
         operand_layouts=make_row_major_layouts(xs_shape, ys_shape, vocab_shape),
         result_layouts=make_row_major_layouts(result_shape)
@@ -68,7 +68,7 @@ mlir.register_lowering(
 
 # define abstract evaluation
 
-def _fused_ce_loss_fwd_abstract_eval(xs, ys, vocab):
+def _fused_ce_loss_fwd_abstract_eval(xs, vocab, ys):
     check_shapes(xs.shape, ys.shape, vocab.shape)
     dtype = dtypes.canonicalize_dtype(xs.dtype)
     return core.ShapedArray(ys.shape, dtype)
