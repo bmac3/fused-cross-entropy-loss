@@ -27,139 +27,131 @@ T infinity() {
 }
 
 
-template <class T, class ReduceTiler,
-          class TensorX, class XSmemLayout, class TiledCopyX, 
-          class TensorV, class VSmemLayout, class TiledCopyV,
-          class TensorN, class TensorM,
-          class CSmemLayout, class TiledMma>
-CUTE_DEVICE 
-void computeNormalizer(ReduceTiler reduce_tiler,
-                       TensorX const gX, XSmemLayout sX_layout, TiledCopyX copy_x,
-                       TensorV const gV, VSmemLayout sV_layout, TiledCopyV copy_v,
-                       TensorN sN, TensorM sM,
-                       CSmemLayout sC_layout, TiledMma mma) {
-    if (thread0()) {
-        print(" gX : "); print(gX); print("\n");
-        print(" gV : "); print(gV); print("\n");
-    }
+// template <class T, class ReduceTiler,
+//           class TensorX, class XSmemLayout, class TiledCopyX, 
+//           class TensorV, class VSmemLayout, class TiledCopyV,
+//           class TensorN, class TensorM,
+//           class CSmemLayout, class TiledMma>
+// CUTE_DEVICE 
+// void computeNormalizer(ReduceTiler reduce_tiler,
+//                        TensorX const gX, XSmemLayout sX_layout, TiledCopyX copy_x,
+//                        TensorV const gV, VSmemLayout sV_layout, TiledCopyV copy_v,
+//                        TensorN sN, TensorM sM,
+//                        CSmemLayout sC_layout, TiledMma mma) {
+//     // if (thread0()) {
+//     //     print(" gX : "); print(gX); print("\n");
+//     //     print(" gV : "); print(gV); print("\n");
+//     // }
 
-    // create shared memory buffers for X and V
-    __shared__ T smemX[cosize_v<XSmemLayout>];
-    __shared__ T smemV[cosize_v<VSmemLayout>];
-    __shared__ T smemC[cosize_v<CSmemLayout>];
-    Tensor sX = make_tensor(make_smem_ptr(smemX), sX_layout);       // (BLK_B,BLK_E)
-    Tensor sV = make_tensor(make_smem_ptr(smemV), sV_layout);       // (BLK_V,BLK_E)
-    Tensor sC = make_tensor(make_smem_ptr(smemC), sC_layout);       // (BLK_B,BLK_V)
+//     // create shared memory buffers for X and V
+//     __shared__ T smemX[cosize_v<XSmemLayout>];
+//     __shared__ T smemV[cosize_v<VSmemLayout>];
+//     __shared__ T smemC[cosize_v<CSmemLayout>];
+//     Tensor sX = make_tensor(make_smem_ptr(smemX), sX_layout);       // (BLK_B,BLK_E)
+//     Tensor sV = make_tensor(make_smem_ptr(smemV), sV_layout);       // (BLK_V,BLK_E)
+//     Tensor sC = make_tensor(make_smem_ptr(smemC), sC_layout);       // (BLK_B,BLK_V)
 
-    // partition X and V for copying
-    ThrCopy thr_copy_x = copy_x.get_slice(threadIdx.x);
-    Tensor tXgX = thr_copy_x.partition_S(gX);                       // (CPY,CPY_B,CPY_E,e)
-    Tensor tXsX = thr_copy_x.partition_D(sX);                       // (CPY,CPY_B,CPY_E)
+//     // partition X and V for copying
+//     ThrCopy thr_copy_x = copy_x.get_slice(threadIdx.x);
+//     Tensor tXgX = thr_copy_x.partition_S(gX);                       // (CPY,CPY_B,CPY_E,e)
+//     Tensor tXsX = thr_copy_x.partition_D(sX);                       // (CPY,CPY_B,CPY_E)
 
-    ThrCopy thr_copy_v = copy_v.get_slice(threadIdx.x);
-    Tensor tVgV = thr_copy_v.partition_S(gV);                       // (CPY,CPY_V,CPY_E,v,e)
-    Tensor tVsV = thr_copy_v.partition_D(sV);                       // (CPY,CPY_V,CPY_E)
+//     ThrCopy thr_copy_v = copy_v.get_slice(threadIdx.x);
+//     Tensor tVgV = thr_copy_v.partition_S(gV);                       // (CPY,CPY_V,CPY_E,v,e)
+//     Tensor tVsV = thr_copy_v.partition_D(sV);                       // (CPY,CPY_V,CPY_E)
 
-    // partition X and V for mma
-    ThrMMA thr_mma = mma.get_slice(threadIdx.x);
-    Tensor tCsX = thr_mma.partition_A(sX);                          // (MMA,MMA_B,MMA_E)
-    Tensor tCsV = thr_mma.partition_B(sV);                          // (MMA,MMA_V,MMA_E)
-    Tensor tCsC = thr_mma.partition_C(sC);                          // (MMA,MMA_B,MMA_V)
+//     // partition X and V for mma
+//     ThrMMA thr_mma = mma.get_slice(threadIdx.x);
+//     Tensor tCsX = thr_mma.partition_A(sX);                          // (MMA,MMA_B,MMA_E)
+//     Tensor tCsV = thr_mma.partition_B(sV);                          // (MMA,MMA_V,MMA_E)
+//     Tensor tCsC = thr_mma.partition_C(sC);                          // (MMA,MMA_B,MMA_V)
 
-    // create accumulator in registers
-    Tensor tCrC = thr_mma.make_fragment_C(tCsC);                    // (MMA,MMA_B,MMA_V)
-    Tensor tCrC2 = thr_mma.make_fragment_C(tCsC);
+//     // create accumulator in registers
+//     Tensor tCrC = thr_mma.make_fragment_C(tCsC);                    // (MMA,MMA_B,MMA_V)
+//     Tensor tCrC2 = thr_mma.make_fragment_C(tCsC);
 
-    auto V_BLOCK_MAX = size<3>(tVgV);
-    auto E_TILE_MAX = size<3>(tXgX);
-    auto B_REG_MAX = size<1>(tCrC);
-    auto V_REG_MAX = size<2>(tCrC);
+//     auto V_BLOCK_MAX = size<3>(tVgV);
+//     auto E_TILE_MAX = size<3>(tXgX);
+//     auto B_REG_MAX = size<1>(tCrC);
+//     auto V_REG_MAX = size<2>(tCrC);
 
-    // register vars to local stats
-    T r_sum;
-    T r_max;
+//     // register vars to local stats
+//     T r_sum;
+//     T r_max;
 
-    // partition C for reduction
-    auto reduce_coord = idx2crd(threadIdx.x, shape(reduce_tiler));
-    Tensor tRsC = local_partition(sC, reduce_tiler, threadIdx.x);
-    Tensor tRsM = local_partition(sM, get<0>(reduce_tiler), get<0>(reduce_coord));
-    Tensor tRsN = local_partition(sN, get<0>(reduce_tiler), get<0>(reduce_coord));
+//     // partition C for reduction
+//     auto reduce_coord = idx2crd(threadIdx.x, shape(reduce_tiler));
+//     Tensor tRsC = local_partition(sC, reduce_tiler, threadIdx.x);
+//     Tensor tRsM = local_partition(sM, get<0>(reduce_tiler), get<0>(reduce_coord));
+//     Tensor tRsN = local_partition(sN, get<0>(reduce_tiler), get<0>(reduce_coord));
 
-    if (thread0()) {
-        print(" tVgV : "); print(tVgV); print("\n");
-        print(" tXgX : "); print(tXgX); print("\n");
-        print(" sC : ");   print(sC);   print("\n");
-        print(" tCsC : "); print(tCsC); print("\n");
-        print(" tCrC : "); print(tCrC); print("\n");
-        print(" reduce_coord : "); print(reduce_coord); print("\n");
-        print(" tRsC : "); print(tRsC); print("\n");
-        print(" tRsN : "); print(tRsN); print("\n");
-        print(" tRsM : "); print(tRsM); print("\n");
-        print(" get<0>(reduce_tiler) : "); print(get<0>(reduce_tiler)); print("\n");
-        print(" select<0>(reduce_tiler) : "); print(select<0>(reduce_tiler)); print("\n");
-        print(" size(tRsC) "), print(size(tRsC)); print("\n");
-        print(" V_BLOCK_MAX : "); print(V_BLOCK_MAX); print("\n");
-        print(" E_TILE_MAX : "); print(E_TILE_MAX); print("\n");
-    }
+//     // if (thread0()) {
+//     //     print(" tVgV : "); print(tVgV); print("\n");
+//     //     print(" tXgX : "); print(tXgX); print("\n");
+//     //     print(" sC : ");   print(sC);   print("\n");
+//     //     print(" tCsC : "); print(tCsC); print("\n");
+//     //     print(" tCrC : "); print(tCrC); print("\n");
+//     //     print(" reduce_coord : "); print(reduce_coord); print("\n");
+//     //     print(" tRsC : "); print(tRsC); print("\n");
+//     //     print(" tRsN : "); print(tRsN); print("\n");
+//     //     print(" tRsM : "); print(tRsM); print("\n");
+//     //     print(" get<0>(reduce_tiler) : "); print(get<0>(reduce_tiler)); print("\n");
+//     //     print(" select<0>(reduce_tiler) : "); print(select<0>(reduce_tiler)); print("\n");
+//     //     print(" size(tRsC) "), print(size(tRsC)); print("\n");
+//     //     print(" V_BLOCK_MAX : "); print(V_BLOCK_MAX); print("\n");
+//     //     print(" E_TILE_MAX : "); print(E_TILE_MAX); print("\n");
+//     // }
 
     
+//     // TODO: deal with imperfect tiling
+//     for (int v_block = 0; v_block < V_BLOCK_MAX; ++v_block) {
+//         // clear the accumulator
+//         clear(tCrC);
+//         for (int e_tile = 0; e_tile < E_TILE_MAX; ++e_tile) {
+//             // copy X and V from gmem to smem
+//             copy(copy_x, tXgX(_,_,_,e_tile),         tXsX);
+//             copy(copy_v, tVgV(_,_,_,v_block,e_tile), tVsV);
+//             fill(tCrC2, static_cast<T>(0.f));
+//             __syncthreads();
 
-    for (int v_block = 0; v_block < V_BLOCK_MAX; ++v_block) {
-        // clear the accumulator
-        clear(tCrC);
-        for (int e_tile = 0; e_tile < E_TILE_MAX; ++e_tile) {
-            // copy X and V from gmem to smem
-            copy(copy_x, tXgX(_,_,_,e_tile),         tXsX);
-            copy(copy_v, tVgV(_,_,_,v_block,e_tile), tVsV);
-            fill(tCrC2, static_cast<T>(0.f));
-            __syncthreads();
+//             // compute gemm
+//             gemm(mma, tCsX, tCsV, tCrC);
+//             gemm(mma, tCsX, tCsV, tCrC2);
+//             __syncthreads();
+//             // if (thread0()) {
+//             //     print(" tCrC(0) : "); print(tCrC(0)); print("\n");
+//             //     print(" tCrC(0) + 1 : "); print(tCrC(0) + static_cast<T>(1.f)); print("\n");
+//             //     print(" tXsX(2) : "); print(tXsX(2)); print("\n");
+//             //     print(" tVsV(2) : "); print(tVsV(2)); print("\n");
+//             //     print(" tCrC2(0) : "); print(tCrC2(0)); print("\n");
+//             // }
+//         }
+//         // copy gemm tile to smem
+//         copy(tCrC, tCsC);
 
-            // compute gemm
-            gemm(mma, tCsX, tCsV, tCrC);
-            gemm(mma, tCsX, tCsV, tCrC2);
-            __syncthreads();
-            if (thread0()) {
-                print(" tCrC(0) : "); print(tCrC(0)); print("\n");
-                print(" tCrC(0) + 1 : "); print(tCrC(0) + static_cast<T>(1.f)); print("\n");
-                print(" tXsX(2) : "); print(tXsX(2)); print("\n");
-                print(" tVsV(2) : "); print(tVsV(2)); print("\n");
-                print(" tCrC2(0) : "); print(tCrC2(0)); print("\n");
+//         // initialize normalizer and max values
+//         fill(sM, -infinity<T>());
+//         r_max = -infinity<T>();
+//         fill(sN, static_cast<T>(0.f));
+//         r_sum = static_cast<T>(0.f);
+//         __syncthreads();
 
-            }
-        }
-        // copy gemm tile to smem
-        copy(tCrC, tCsC);
+//         // compute local max
+//         for (int i = 0; i < size(tRsC); ++i) {
+//             r_max = fast_max(r_max, tRsC(i));
+//         }
+//         cutlass::atomic_maximum<T>{}(&tRsM(0), r_max);
+//         __syncthreads();
 
-        // initialize normalizer and max values
-        fill(sM, -infinity<T>());
-        r_max = -infinity<T>();
-        fill(sN, static_cast<T>(0.f));
-        r_sum = static_cast<T>(0.f);
-        __syncthreads();
-
-        // compute local max
-        for (int i = 0; i < size(tRsC); ++i) {
-            r_max = fast_max(r_max, tRsC(i));
-        }
-        cutlass::atomic_maximum<T>{}(&tRsM(0), r_max);
-        __syncthreads();
-
-        // compute local sum
-        r_max = tRsM(0);
-        for (int i = 0; i < size(tRsC); ++i) {
-            r_sum += exp(tRsC(i) - r_max);
-        }
-        cutlass::atomic_add<T>{}(&tRsN(0), r_sum);
-        __syncthreads();
-
-    }
-    if (thread0()) {
-        print(" tRsM(0) : "); print(tRsM(0)); print("\n");
-        print(" r_max : "); print(r_max); print("\n");
-        print(" tRsN(0) : "); print(tRsN(0)); print("\n");
-        print(" r_sum : "); print(r_sum); print("\n");
-    }
-}
+//         // compute local sum
+//         r_max = tRsM(0);
+//         for (int i = 0; i < size(tRsC); ++i) {
+//             r_sum += exp(tRsC(i) - r_max);
+//         }
+//         cutlass::atomic_add<T>{}(&tRsN(0), r_sum);
+//         __syncthreads();
+//     }
+// }
 
 
 
@@ -191,17 +183,128 @@ __global__ void cuFusedCrossEntropyLossFwd(CtaTiler cta_tiler, ReduceTiler reduc
     Tensor gY = local_tile(mY, cta_tiler, cta_coord, Step<_1,cute::X,cute::X>{});     // (BLK_B)
     Tensor gO = local_tile(mO, cta_tiler, cta_coord, Step<_1,cute::X,cute::X>{});     // (BLK_B)
 
-    // create shared memory buffers for normalizers and max scores
+    // create shared memory buffers for normalizers, max scores, and label scores
     __shared__ T smemN[cosize_v<NSmemLayout>]; 
     __shared__ T smemM[cosize_v<MSmemLayout>];
+
     Tensor sN = make_tensor(make_smem_ptr(smemN), sN_layout);
     Tensor sM = make_tensor(make_smem_ptr(smemM), sM_layout);
 
-    computeNormalizer<T>(reduce_tiler,
-                         gX, sX_layout, copy_x,
-                         gV, sV_layout, copy_v,
-                         sN, sM,
-                         sC_layout, mma);
+    __shared__ T smemX[cosize_v<XSmemLayout>];
+    __shared__ T smemV[cosize_v<VSmemLayout>];
+    __shared__ T smemC[cosize_v<CSmemLayout>];
+    Tensor sX = make_tensor(make_smem_ptr(smemX), sX_layout);       // (BLK_B,BLK_E)
+    Tensor sV = make_tensor(make_smem_ptr(smemV), sV_layout);       // (BLK_V,BLK_E)
+    Tensor sC = make_tensor(make_smem_ptr(smemC), sC_layout);       // (BLK_B,BLK_V)
+
+    // partition X and V for copying
+    ThrCopy thr_copy_x = copy_x.get_slice(threadIdx.x);
+    Tensor tXgX = thr_copy_x.partition_S(gX);                       // (CPY,CPY_B,CPY_E,e)
+    Tensor tXsX = thr_copy_x.partition_D(sX);                       // (CPY,CPY_B,CPY_E)
+
+    ThrCopy thr_copy_v = copy_v.get_slice(threadIdx.x);
+    Tensor tVgV = thr_copy_v.partition_S(gV);                       // (CPY,CPY_V,CPY_E,v,e)
+    Tensor tVsV = thr_copy_v.partition_D(sV);                       // (CPY,CPY_V,CPY_E)
+
+    // partition X and V for mma
+    ThrMMA thr_mma = mma.get_slice(threadIdx.x);
+    Tensor tCsX = thr_mma.partition_A(sX);                          // (MMA,MMA_B,MMA_E)
+    Tensor tCsV = thr_mma.partition_B(sV);                          // (MMA,MMA_V,MMA_E)
+    Tensor tCsC = thr_mma.partition_C(sC);                          // (MMA,MMA_B,MMA_V)
+
+    // create accumulator in registers
+    Tensor tCrC = thr_mma.make_fragment_C(tCsC);                    // (MMA,MMA_B,MMA_V)
+    Tensor tCrC2 = thr_mma.make_fragment_C(tCsC);
+
+    auto V_BLOCK_MAX = size<3>(tVgV);
+    auto E_TILE_MAX = size<3>(tXgX);
+    auto B_REG_MAX = size<1>(tCrC);
+    auto V_REG_MAX = size<2>(tCrC);
+
+    // register vars for local stats
+    T r_sum;
+    T r_max;
+
+    // partition C for reduction
+    auto reduce_coord = idx2crd(threadIdx.x, shape(reduce_tiler));
+    Tensor tRsC = local_partition(sC, reduce_tiler, threadIdx.x);
+    Tensor tRsM = local_partition(sM, get<0>(reduce_tiler), get<0>(reduce_coord));
+    Tensor tRsN = local_partition(sN, get<0>(reduce_tiler), get<0>(reduce_coord));
+
+    // if (thread0()) {
+    //     print(" tVgV : "); print(tVgV); print("\n");
+    //     print(" tXgX : "); print(tXgX); print("\n");
+    //     print(" sC : ");   print(sC);   print("\n");
+    //     print(" tCsC : "); print(tCsC); print("\n");
+    //     print(" tCrC : "); print(tCrC); print("\n");
+    //     print(" reduce_coord : "); print(reduce_coord); print("\n");
+    //     print(" tRsC : "); print(tRsC); print("\n");
+    //     print(" tRsN : "); print(tRsN); print("\n");
+    //     print(" tRsM : "); print(tRsM); print("\n");
+    //     print(" get<0>(reduce_tiler) : "); print(get<0>(reduce_tiler)); print("\n");
+    //     print(" select<0>(reduce_tiler) : "); print(select<0>(reduce_tiler)); print("\n");
+    //     print(" size(tRsC) "), print(size(tRsC)); print("\n");
+    //     print(" V_BLOCK_MAX : "); print(V_BLOCK_MAX); print("\n");
+    //     print(" E_TILE_MAX : "); print(E_TILE_MAX); print("\n");
+    // }
+
+    
+    // TODO: deal with imperfect tiling
+    for (int v_block = 0; v_block < V_BLOCK_MAX; ++v_block) {
+        // clear the accumulator
+        clear(tCrC);
+        for (int e_tile = 0; e_tile < E_TILE_MAX; ++e_tile) {
+            // copy X and V from gmem to smem
+            copy(copy_x, tXgX(_,_,_,e_tile),         tXsX);
+            copy(copy_v, tVgV(_,_,_,v_block,e_tile), tVsV);
+            fill(tCrC2, static_cast<T>(0.f));
+            __syncthreads();
+
+            // compute gemm
+            gemm(mma, tCsX, tCsV, tCrC);
+            gemm(mma, tCsX, tCsV, tCrC2);
+            __syncthreads();
+            // if (thread0()) {
+            //     print(" tCrC(0) : "); print(tCrC(0)); print("\n");
+            //     print(" tCrC(0) + 1 : "); print(tCrC(0) + static_cast<T>(1.f)); print("\n");
+            //     print(" tXsX(2) : "); print(tXsX(2)); print("\n");
+            //     print(" tVsV(2) : "); print(tVsV(2)); print("\n");
+            //     print(" tCrC2(0) : "); print(tCrC2(0)); print("\n");
+            // }
+        }
+        // copy gemm tile to smem
+        copy(tCrC, tCsC);
+
+        // initialize normalizer and max values
+        fill(sM, -infinity<T>());
+        r_max = -infinity<T>();
+        fill(sN, static_cast<T>(0.f));
+        r_sum = static_cast<T>(0.f);
+        __syncthreads();
+
+        // compute local max
+        for (int i = 0; i < size(tRsC); ++i) {
+            r_max = fast_max(r_max, tRsC(i));
+        }
+        cutlass::atomic_maximum<T>{}(&tRsM(0), r_max);
+        __syncthreads();
+
+        // compute local sum
+        r_max = tRsM(0);
+        for (int i = 0; i < size(tRsC); ++i) {
+            r_sum += exp(tRsC(i) - r_max);
+        }
+        cutlass::atomic_add<T>{}(&tRsN(0), r_sum);
+        __syncthreads();
+    }
+
+    // compute label logits
+
+    // partition threads over 
+
+
+
+
 
 }
 
