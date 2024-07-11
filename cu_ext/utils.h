@@ -55,4 +55,14 @@ cutlass::bfloat16_t exp(cutlass::bfloat16_t const& h) {
 }
 
 
+CUTLASS_HOST_DEVICE
+cutlass::bfloat16_t log(cutlass::bfloat16_t const& h) {
+#if defined(__CUDACC_RTC__)
+  return cutlass::bfloat16_t(logf(float(h)));
+#else
+  return cutlass::bfloat16_t(std::log(float(h)));
+#endif
+}
+
+
 }
