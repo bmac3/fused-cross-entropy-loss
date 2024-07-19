@@ -117,28 +117,82 @@ __global__ void cuFusedCrossEntropyLossFwd(CtaTiler cta_tiler, ReduceTiler reduc
     fill(sOM, -infinity<float>());
     fill(sON, 0.f);
 
+    // create predicate tensors
+    Tensor tXpX = make_tensor<bool>(shape(tXsX), LayoutRight{});
+    Tensor tVpV = make_tensor<bool>(shape(tVsV), LayoutRight{});
+
+    // create reference tensors
+    Tensor cX = make_identity_tensor(shape(sX));
+    Tensor cV = make_identity_tensor(shape(sV));
+
+    // partition reference tensors
+    Tensor tXcX = thr_copy_x.partition_D(cX);
+    Tensor tVcV = thr_copy_v.partition_D(cV);
+
+    // populate X's predicate tensor
+    CUTE_UNROLL
+    for (int b = 0; b < size<1>(tXpX); ++b) {
+        fill(tXpX(_,b,_), blockDim.x * blockIdx.x + get<0>(tXcX(0,b,0)) < size<0>(mX));
+        if (thread0()){
+            print(" b : "); print(b); print("\n");
+            print(" blockDim.x * blockIdx.x : "); print(blockDim.x * blockIdx.x); print("\n");
+            print(" tXcX(0,b,0) : "); print(tXcX(0,b,0)); print("\n");
+            print(" get<0>(tXcX(0,b,0)) : "); print(get<0>(tXcX(0,b,0))); print("\n");
+            print(" get<1>(tXcX(0,b,0)) : "); print(get<1>(tXcX(0,b,0))); print("\n");
+            auto res = tXcX(0,b,0);
+            print(" get<0>(res) : "); print(get<0>(res)); print("\n");
+            print(" res(0) : "); print(res(0)); print("\n");
+            print(" static_cast<int>(get<0>(tXcX(0,b,0))) : "); print(static_cast<int>(get<0>(tXcX(0,b,0)))); print("\n");
+            print(" select<0>(tXcX(0,b,0)) : "); print(select<0>(tXcX(0,b,0))); print("\n");
+            print(" cX(40,44) : "); print(cX(40,44)); print("\n");
+            print(" get<0>(cX(40,44)) : "); print(get<0>(cX(40,44))); print("\n");
+        }
+    }
+
+    if (thread0()) {
+        print(" size<0>(mX) : "); print(size<0>(mX)); print("\n");
+        print(" size<0>(mV) : "); print(size<0>(mV)); print("\n");
+        print(" tXpX : "); print(tXpX); print("\n");
+        print(" tVpV : "); print(tVpV); print("\n");
+        print(" cX : "); print(cX); print("\n");
+        print(" cV : "); print(cV); print("\n");
+    }
+
     // TODO: deal with imperfect tiling
     for (int v_block = 0; v_block < V_BLOCK_MAX; ++v_block) {
         // clear the accumulator
         clear(tCrC);
+
+        // populate V's predicate tensor
+        CUTE_UNROLL
+        for (int v = 0; v < size<1>(tVpV); ++v) {
+            fill(tVpV(_,v,_), v_block * V_BLOCK_SIZE + get<0>(tVcV(0,v,0)) < size<0>(mV));
+            if (v_block * V_BLOCK_SIZE + get<0>(tVcV(0,v,0)) < size<0>(mV)){
+                print(" v_block * V_BLOCK_SIZE "); print(v_block * V_BLOCK_SIZE); print("\n");
+                print(" get<0>(tVcV(0,v,0)) "); print(get<0>(tVcV(0,v,0))); print("\n");
+                print(" size<0>(mV) "); print(size<0>(mV)); print("\n");
+            }
+        }
+
         for (int e_tile = 0; e_tile < E_TILE_MAX; ++e_tile) {
             // copy X and V from gmem to smem
-            copy(copy_x, tXgX(_,_,_,e_tile),         tXsX);
-            copy(copy_v, tVgV(_,_,_,v_block,e_tile), tVsV);
+            copy_if(copy_x, tXpX, tXgX(_,_,_,e_tile),         tXsX);
+            copy_if(copy_v, tVpV, tVgV(_,_,_,v_block,e_tile), tVsV);
             __syncthreads();
 
             // compute gemm
             gemm(mma, tCsX, tCsV, tCrC);
             __syncthreads();
         }
+
         // copy gemm tile to smem
         copy(tCrC, tCsC);
         __syncthreads();
 
         // initialize local/register normalizer and max values
-        fill(sLM, -infinity<float>());
+        fill(tRsLM, -infinity<float>());
         r_max = -infinity<float>();
-        fill(sLN, 0.f);
+        fill(tRsLN, 0.f);
         r_sum = 0.f;
         __syncthreads();
 
