@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15...3.27)
+cmake_minimum_required(VERSION 3.25.2)
 
 project(
     ${SKBUILD_PROJECT_NAME}
@@ -18,9 +18,8 @@ include_directories(
 )
 
 pybind11_add_module(
-    cu_ext
-    ${CMAKE_CURRENT_LIST_DIR}/cu_ext/kernels.cu
-    ${CMAKE_CURRENT_LIST_DIR}/cu_ext/cu_ext.cpp
+    fused_ce
+    ${CMAKE_CURRENT_LIST_DIR}/cu_ext/cu_ext.cu
 )
 
-install(TARGETS cu_ext LIBRARY DESTINATION .)
+install(TARGETS fused_ce LIBRARY DESTINATION .)

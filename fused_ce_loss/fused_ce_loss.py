@@ -6,7 +6,7 @@ from jax.interpreters.mlir import ir
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 
-from . import cu_ext
+from . import fused_ce
 
 
 # create primative
@@ -20,8 +20,18 @@ def fused_ce_loss_fwd(xs, vocab, ys):
 
 
 # register lowering
-for _name, _value in cu_ext.registrations().items():
+for _name, _value in fused_ce.registrations().items():
     xla_client.register_custom_call_target(_name, _value, platform='gpu')
+
+
+def element_type_to_descriptor_type_mapping(element_type):
+    _element_type_to_descriptor_type_mapping = {
+        ir.BF16Type.get(): fused_ce.ElementType.BF16,
+        ir.F16Type.get(): fused_ce.ElementType.F16,
+        ir.F32Type.get(): fused_ce.ElementType.F32,
+        ir.F64Type.get(): fused_ce.ElementType.F64,
+    }
+    return _element_type_to_descriptor_type_mapping.get(element_type)
 
 
 def check_shapes(xs_shape, ys_shape, vocab_shape):
@@ -47,12 +57,20 @@ def _fused_ce_loss_fwd_cuda_lowering(ctx, xs, vocab, ys):
     batch_size, sequence_len = ys_shape
     vocab_size, embed_size = vocab_shape
 
-    opaque = cu_ext.build_fused_ce_loss_descriptor(batch_size, sequence_len, vocab_size, embed_size)
+    opaque = fused_ce.build_fused_ce_loss_descriptor(
+        batch_size, 
+        sequence_len, 
+        vocab_size, 
+        embed_size
+        element_type_to_descriptor_type_mapping(xs_type),
+        element_type_to_descriptor_type_mapping(ir.F32Type.get()),
+        element_type_to_descriptor_type_mapping(ir.F32Type.get())
+    )
     result_shape = ys_shape
 
     return custom_call(
-        b'fused_ce_loss_fwd_bf16',
-        result_types=[ir.RankedTensorType.get(result_shape, ir.BF16Type.get())],
+        b'fused_ce_loss_fwd',
+        result_types=[ir.RankedTensorType.get(result_shape, xs_type)],
         operands=[xs, vocab, ys],
         backend_config=opaque,
         operand_layouts=make_row_major_layouts(xs_shape, ys_shape, vocab_shape),
