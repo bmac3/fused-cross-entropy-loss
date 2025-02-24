@@ -15,6 +15,7 @@ bit_cast(const From& src) noexcept {
   static_assert(
       std::is_trivially_constructible<To>::value,
       "This implementation additionally requires destination type to be trivially constructible");
+
   To dst;
   memcpy(&dst, &src, sizeof(To));
   return dst;

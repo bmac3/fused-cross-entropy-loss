@@ -50,16 +50,14 @@ public:
 
 } // kernel
 
-// template <
-//     typename Element_,
-//     typename ElementReduce_
-// >
+template <typename KTraits>
 class FusedCELossFwd {
 public:
     // type definitions
-    // using Element = Element_;
-    // using ElementReduce = ElementReduce_;
-    using Layout = LayoutRight;
+    using Element = KTraits::Element;
+    using ElementReduce = KTraits::ElementReduce;
+    using ElementAccumulate = KTraits::ElementAccumulate;
+    using Layout = Layout_;
 
     struct Params {
         // input arguments
@@ -73,20 +71,27 @@ public:
         // opaque arguments
         Descriptor desc;
 
-        Params(void** buffers, const char* opaque, std::size_t opaque_len)
+        Params(void** buffers, Descriptor descriptor)
             : ptr_X{static_cast<Element const*>(buffers[0])},
               ptr_V{static_cast<Element const*>(buffers[1])},
               ptr_Y{static_cast<int     const*>(buffers[2])},
               ptr_O{static_cast<Element      *>(buffers[3])},
-              desc{*UnpackDescriptor<Descriptor>(opaque, opaque_len)} {}
+              desc{descriptor} {}
+
+        // Params(void** buffers, const char* opaque, std::size_t opaque_len)
+        //     : ptr_X{static_cast<Element const*>(buffers[0])},
+        //       ptr_V{static_cast<Element const*>(buffers[1])},
+        //       ptr_Y{static_cast<int     const*>(buffers[2])},
+        //       ptr_O{static_cast<Element      *>(buffers[3])},
+        //       desc{*UnpackDescriptor<Descriptor>(opaque, opaque_len)} {}
     };
 
 public:
     // methods
     cutlass::Status operator()(Params const &params, cudaStream_t stream) {
         // auto desc = params.desc;
-        // using Element = typename ElementTypeMapping<desc.element_type>;
 
+        
 
         // Tensor V = make_tensor(
         //     make_gmem_ptr(params.ptr_V),

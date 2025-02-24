@@ -6,7 +6,7 @@ from jax.interpreters.mlir import ir
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 
-from . import fused_ce
+from . import cu_ext
 
 
 # create primative
@@ -20,16 +20,16 @@ def fused_ce_loss_fwd(xs, vocab, ys):
 
 
 # register lowering
-for _name, _value in fused_ce.registrations().items():
+for _name, _value in cu_ext.registrations().items():
     xla_client.register_custom_call_target(_name, _value, platform='gpu')
 
 
 def element_type_to_descriptor_type_mapping(element_type):
     _element_type_to_descriptor_type_mapping = {
-        ir.BF16Type.get(): fused_ce.ElementType.BF16,
-        ir.F16Type.get(): fused_ce.ElementType.F16,
-        ir.F32Type.get(): fused_ce.ElementType.F32,
-        ir.F64Type.get(): fused_ce.ElementType.F64,
+        ir.BF16Type.get(): cu_ext.ElementType.BF16,
+        ir.F16Type.get(): cu_ext.ElementType.F16,
+        ir.F32Type.get(): cu_ext.ElementType.F32,
+        ir.F64Type.get(): cu_ext.ElementType.F64,
     }
     return _element_type_to_descriptor_type_mapping.get(element_type)
 
@@ -57,7 +57,7 @@ def _fused_ce_loss_fwd_cuda_lowering(ctx, xs, vocab, ys):
     batch_size, sequence_len = ys_shape
     vocab_size, embed_size = vocab_shape
 
-    opaque = fused_ce.build_fused_ce_loss_descriptor(
+    opaque = cu_ext.build_fused_ce_loss_descriptor(
         batch_size, 
         sequence_len, 
         vocab_size, 

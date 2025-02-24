@@ -7,8 +7,8 @@ project(
 )
 
 set(PYBIND11_FINDPYTTHON True)
-
 set(CMAKE_CUDA_ARCHITECTURES 80)
+add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>)
 
 find_package(pybind11 REQUIRED)
 include_directories(
